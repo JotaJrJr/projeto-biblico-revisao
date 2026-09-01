@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisão de devocionais — Projeto Bíblico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap">
+<style>
+  :root{
+    --ground:#F4F5F1; --surface:#fff; --ink:#1D2B24; --muted:#5B6472; --line:#E0E2DC;
+    --green:#2F5D45; --green-soft:#E4EDE7; --brass:#B98A3C;
+    --ok:#3C7A54; --warn:#B27F2A; --bad:#A6483C;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --ground:#16211C; --surface:#1A2620; --ink:#E7EAE4; --muted:#9AA9A0;
+      --line:#2B3A32; --green:#7FB394; --green-soft:#1E2A22; --brass:#D8AD64;
+      --ok:#6FB187; --warn:#D8AD64; --bad:#E08579; }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ground);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.6;padding-bottom:4rem}
+  .wrap{max-width:44rem;margin:0 auto;padding:0 1rem}
+
+  /* gate */
+  #gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:1rem;padding:2rem;text-align:center}
+  #gate h1{font-family:"Newsreader",Georgia,serif;font-weight:500;font-size:1.5rem}
+  #gate p{color:var(--muted);font-size:.9rem;max-width:22rem}
+  #gate form{display:flex;gap:.5rem;width:100%;max-width:20rem}
+  #gate input{flex:1;font:inherit;font-size:1rem;padding:.6rem .8rem;border:1px solid var(--line);
+    border-radius:.5rem;background:var(--surface);color:var(--ink);text-align:center;letter-spacing:.2em}
+  #gate button{font:inherit;font-weight:600;padding:.6rem 1rem;border:0;border-radius:.5rem;
+    background:var(--green);color:#fff;cursor:pointer}
+  #gate .err{color:var(--bad);font-size:.85rem;min-height:1rem}
+
+  header{position:sticky;top:0;z-index:5;background:var(--ground);border-bottom:1px solid var(--line);padding:.8rem 0}
+  header .wrap{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+  h1.hd{font-family:"Newsreader",Georgia,serif;font-weight:500;font-size:1.15rem;flex:1}
+  .prog{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:.5rem}
+  .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
+  .who{width:100%;display:flex;gap:.5rem;align-items:center;font-size:.8rem;color:var(--muted)}
+  .who input{flex:1;font:inherit;font-size:.85rem;padding:.35rem .5rem;border:1px solid var(--line);
+    border-radius:.4rem;background:var(--surface);color:var(--ink)}
+
+  main{padding-top:1.2rem}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:1.1rem 1.1rem 1.2rem;margin-bottom:1rem;box-shadow:0 6px 20px -14px rgba(0,0,0,.15)}
+  .card.done-ap{border-color:var(--ok)} .card.done-aj{border-color:var(--warn)} .card.done-re{border-color:var(--bad)}
+  .num{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  h2{font-family:"Newsreader",Georgia,serif;font-weight:500;font-size:1.4rem;line-height:1.2;margin:.15rem 0 .7rem}
+  .verse{border-left:3px solid var(--green-soft);padding-left:.9rem;margin:.6rem 0 1rem}
+  .verse b{color:var(--green);font-size:.9rem}
+  .verse p{font-family:"Newsreader",Georgia,serif;font-style:italic;font-size:1.05rem;margin-top:.2rem}
+  .refl p{margin:.7rem 0}
+  .field{margin-top:.9rem;font-size:.95rem}
+  .field .lab{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.1rem}
+  details{margin-top:1rem;font-size:.88rem;color:var(--muted)}
+  details summary{cursor:pointer;color:var(--green);font-size:.82rem}
+  details ul{margin:.5rem 0 0 1.1rem}
+
+  .actions{display:flex;gap:.5rem;margin-top:1.2rem;flex-wrap:wrap}
+  .actions button{flex:1;min-width:8rem;font:inherit;font-weight:600;font-size:.9rem;padding:.6rem .5rem;
+    border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;transition:.15s}
+  .actions button:hover{border-color:var(--muted)}
+  .actions button[aria-pressed="true"].ap{background:var(--ok);border-color:var(--ok);color:#fff}
+  .actions button[aria-pressed="true"].aj{background:var(--warn);border-color:var(--warn);color:#fff}
+  .actions button[aria-pressed="true"].re{background:var(--bad);border-color:var(--bad);color:#fff}
+  .notes{margin-top:.7rem;display:none} .notes.show{display:block}
+  .notes textarea{width:100%;min-height:4rem;font:inherit;font-size:.9rem;padding:.6rem;border:1px solid var(--line);
+    border-radius:.5rem;background:var(--ground);color:var(--ink);resize:vertical}
+  .saved{font-size:.75rem;color:var(--muted);margin-top:.4rem;min-height:1rem}
+
+  footer{text-align:center;margin-top:1.5rem;font-size:.8rem;color:var(--muted)}
+  footer button{font:inherit;font-size:.8rem;padding:.5rem .9rem;border:1px solid var(--line);border-radius:.5rem;
+    background:var(--surface);color:var(--ink);cursor:pointer;margin:.3rem}
+  .empty{text-align:center;padding:3rem 1rem;color:var(--muted)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>Revisão de devocionais</h1>
+  <p>Este material é confidencial. Digite a senha de acesso.</p>
+  <form id="gateForm">
+    <input id="pw" type="password" inputmode="numeric" placeholder="senha" autocomplete="off" autofocus>
+    <button type="submit">Entrar</button>
+  </form>
+  <div class="err" id="gateErr"></div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div class="wrap">
+      <h1 class="hd">Revisão de devocionais</h1>
+      <span class="prog" id="prog">0 / 0</span>
+      <div class="bar"><i id="barfill"></i></div>
+      <label class="who">Seu nome:
+        <input id="who" placeholder="para registrar quem revisou" autocomplete="name">
+      </label>
+    </div>
+  </header>
+  <main class="wrap" id="list"></main>
+  <footer class="wrap">
+    <p>As respostas são salvas automaticamente. Se algo falhar, use o backup.</p>
+    <button id="backup">Baixar backup (.json)</button>
+    <button id="reenviar">Reenviar tudo</button>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function(){
+  var CFG = window.REVIEW_CONFIG || {};
+  var LS = "pb-review-v1";
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem(LS) || "{}"); } catch(e){}
+  function persist(){ try{ localStorage.setItem(LS, JSON.stringify(store)); }catch(e){} }
+  var b64d = function(s){ return Uint8Array.from(atob(s), function(c){return c.charCodeAt(0);}); };
+
+  // ---------- gate / decrypt ----------
+  async function decryptList(password){
+    var blob = await fetch("devocionais.enc", {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("arquivo"); return r.json(); });
+    var km = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+    var key = await crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt:b64d(blob.salt), iterations:blob.iter, hash:"SHA-256"},
+      km, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+    var pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64d(blob.iv)}, key, b64d(blob.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+
+  var gate = document.getElementById("gate"), app = document.getElementById("app");
+  function open(data){
+    gate.classList.add("hidden"); app.classList.remove("hidden");
+    render(data.devocionais || []);
+  }
+  function tryPw(pw, onErr){
+    decryptList(pw).then(function(data){
+      try{ sessionStorage.setItem("pb-pw", pw); }catch(e){}
+      open(data);
+    }).catch(function(){ onErr && onErr(); });
+  }
+  document.getElementById("gateForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var err = document.getElementById("gateErr");
+    err.textContent = "abrindo…";
+    tryPw(document.getElementById("pw").value.trim(), function(){ err.textContent = "senha incorreta"; });
+  });
+  var cached = null; try{ cached = sessionStorage.getItem("pb-pw"); }catch(e){}
+  if(cached) tryPw(cached, function(){ try{ sessionStorage.removeItem("pb-pw"); }catch(e){} });
+
+  // ---------- review ----------
+  var whoEl = document.getElementById("who");
+  whoEl.value = store.__revisor || "";
+  whoEl.addEventListener("input", function(){ store.__revisor = whoEl.value.trim(); persist(); });
+
+  function send(rec){
+    if(!CFG.APPS_SCRIPT_URL) return Promise.resolve(false);
+    return fetch(CFG.APPS_SCRIPT_URL, {method:"POST", mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify(Object.assign({token:CFG.TOKEN}, rec))})
+      .then(function(){return true;}).catch(function(){return false;});
+  }
+  function decide(dev, status, card){
+    var notes = card.querySelector("textarea").value.trim();
+    store[dev.id] = { status:status, notas:notes, ts:Date.now() }; persist();
+    paint(card, status);
+    var s = card.querySelector(".saved"); s.textContent = "salvo…";
+    send({ id:dev.id, titulo:dev.titulo, status:status, notas:notes, revisor:(store.__revisor||"") })
+      .then(function(ok){ s.textContent = ok ? "enviado ✓" : (CFG.APPS_SCRIPT_URL ? "envio pendente — use Reenviar" : "salvo no navegador"); updateProg(); });
+  }
+  function paint(card, status){
+    card.classList.remove("done-ap","done-aj","done-re");
+    var m = {Aprovar:"ap", Ajustar:"aj", Rejeitar:"re"};
+    if(m[status]) card.classList.add("done-"+m[status]);
+    card.querySelectorAll(".actions button").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.act===status ? "true":"false"); });
+    card.querySelector(".notes").classList.toggle("show", status==="Ajustar" || status==="Rejeitar");
+  }
+  function updateProg(){
+    var total = (window.__DEVS||[]).length;
+    var done = (window.__DEVS||[]).filter(function(d){ return store[d.id] && store[d.id].status; }).length;
+    document.getElementById("prog").textContent = done + " / " + total;
+    document.getElementById("barfill").style.width = total ? (done/total*100)+"%" : "0";
+  }
+  var CHECK = [
+    "Soa como um irmão mais velho, não púlpito/coach/vendedor?",
+    "Frases curtas, fala com ‘você’, concreto (tem cena/imagem/passo)?",
+    "Sem prosperidade, culpa, promessa de resultado, política, marketing?",
+    "O versículo realmente sustenta o ponto (não é texto fora de contexto)?",
+    "Sem clichê religioso gasto?"
+  ];
+  function render(devs){
+    window.__DEVS = devs;
+    var list = document.getElementById("list"); list.innerHTML = "";
+    if(!devs.length){ list.innerHTML = '<div class="empty">Nenhum devocional para revisar agora.</div>'; return; }
+    devs.forEach(function(d, i){
+      var card = document.createElement("article"); card.className = "card";
+      card.innerHTML =
+        '<span class="num">Devocional '+(i+1)+' de '+devs.length+'</span><h2></h2>'+
+        '<div class="verse"><b></b><p></p></div><div class="refl"></div>'+
+        '<div class="field"><span class="lab">Aplicação</span><span class="ap-t"></span></div>'+
+        '<div class="field"><span class="lab">Oração</span><span class="or-t"></span></div>'+
+        '<div class="field"><span class="lab">Pergunta do diário</span><span class="pd-t"></span></div>'+
+        '<details><summary>checklist rápido</summary><ul>'+CHECK.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul></details>'+
+        '<div class="actions">'+
+          '<button class="ap" data-act="Aprovar" aria-pressed="false">✓ Aprovar</button>'+
+          '<button class="aj" data-act="Ajustar" aria-pressed="false">✎ Ajustar</button>'+
+          '<button class="re" data-act="Rejeitar" aria-pressed="false">✕ Rejeitar</button>'+
+        '</div><div class="notes"><textarea placeholder="O que ajustar / por que rejeitar (doutrina, uso do versículo, tom)…"></textarea></div>'+
+        '<div class="saved"></div>';
+      card.querySelector("h2").textContent = d.titulo;
+      card.querySelector(".verse b").textContent = d.versiculo.referencia + "  ·  " + d.versiculo.traducao;
+      card.querySelector(".verse p").textContent = d.versiculo.texto;
+      var refl = card.querySelector(".refl");
+      String(d.reflexao).split(/\n+/).forEach(function(p){ var el=document.createElement("p"); el.textContent=p; refl.appendChild(el); });
+      card.querySelector(".ap-t").textContent = d.aplicacao;
+      card.querySelector(".or-t").textContent = d.oracao;
+      card.querySelector(".pd-t").textContent = d.pergunta_diario || "—";
+      var ta = card.querySelector("textarea"), prev = store[d.id];
+      if(prev){ ta.value = prev.notas || ""; paint(card, prev.status); }
+      ta.addEventListener("input", function(){ if(store[d.id]){ store[d.id].notas = ta.value.trim(); persist(); } });
+      card.querySelectorAll(".actions button").forEach(function(b){ b.addEventListener("click", function(){ decide(d, b.dataset.act, card); }); });
+      list.appendChild(card);
+    });
+    updateProg();
+  }
+
+  document.getElementById("backup").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(store, null, 2)], {type:"application/json"});
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = "pareceres-backup-" + new Date().toISOString().slice(0,10) + ".json"; a.click();
+  });
+  document.getElementById("reenviar").addEventListener("click", function(){
+    if(!CFG.APPS_SCRIPT_URL){ alert("O envio ainda não foi configurado. Use o backup."); return; }
+    var ids = Object.keys(store).filter(function(k){ return k.indexOf("__")!==0 && store[k].status; });
+    Promise.all(ids.map(function(id){
+      var d = (window.__DEVS||[]).filter(function(x){return x.id===id;})[0] || {titulo:""};
+      return send({ id:id, titulo:d.titulo, status:store[id].status, notas:store[id].notas||"", revisor:(store.__revisor||"") });
+    })).then(function(){ alert("Reenviado: " + ids.length); });
+  });
+})();
+</script>
+</body>
+</html>
