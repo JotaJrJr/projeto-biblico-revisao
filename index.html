@@ -228,17 +228,45 @@
       .then(function(){return true;}).catch(function(){return false;});
   }
   function kindDe(id){ return String(id).indexOf("quiz-")===0 ? "quiz" : "devocional"; }
+  function precisaNota(status){ return status==="Ajustar" || status==="Rejeitar"; }
+
+  // Envia o parecer atual (status + nota do momento) pra planilha. Evita
+  // reenviar um payload idêntico ao último (debounce + blur não geram 2 linhas).
+  function enviarParecer(item, card){
+    var p = papel();
+    var d = (store[item.id]||{})[p];
+    if(!d || !d.status) return;
+    var rec = { id:item.id, kind:kindDe(item.id), titulo:item.titulo, papel:p,
+                status:d.status, notas:d.notas||"", revisor:(store.__revisor||"") };
+    var assinatura = JSON.stringify(rec);
+    if(card.dataset.ultimoEnvio === assinatura) return;
+    var s = card.querySelector(".saved");
+    s.textContent = "salvando…";
+    send(rec).then(function(ok){
+      if(ok) card.dataset.ultimoEnvio = assinatura;
+      s.textContent = ok ? "enviado ✓"
+        : (CFG.APPS_SCRIPT_URL ? "envio pendente — use Reenviar" : "salvo no navegador");
+    });
+  }
+
   function decide(item, status, card){
     var p = papel();
-    var notes = card.querySelector("textarea").value.trim();
+    var ta = card.querySelector("textarea");
+    var atual = (store[item.id]||{})[p] || {};
     store[item.id] = store[item.id] || {};
-    store[item.id][p] = { status:status, notas:notes, ts:Date.now() };
+    store[item.id][p] = { status:status, notas:ta.value.trim() || atual.notas || "", ts:Date.now() };
     persist();
     paintCard(card, item);
     updateProg();
-    var s = card.querySelector(".saved"); s.textContent = "salvo…";
-    send({ id:item.id, kind:kindDe(item.id), titulo:item.titulo, papel:p, status:status, notas:notes, revisor:(store.__revisor||"") })
-      .then(function(ok){ s.textContent = ok ? "enviado ✓" : (CFG.APPS_SCRIPT_URL ? "envio pendente — use Reenviar" : "salvo no navegador"); });
+    var s = card.querySelector(".saved");
+    if(precisaNota(status) && !store[item.id][p].notas){
+      // Não envia ainda — a nota é o conteúdo. Manda quando ela for escrita
+      // (auto ao parar de digitar / ao sair do campo).
+      s.textContent = "escreva o motivo abaixo — salva sozinho";
+      ta.focus();
+    } else {
+      enviarParecer(item, card);
+    }
   }
 
   function badgeHtml(item){
@@ -295,12 +323,22 @@
 
   function ligarCard(card, item){
     var ta = card.querySelector("textarea");
+    var timer = null;
     ta.addEventListener("input", function(){
       var d2 = dec(item.id);
-      if(d2){ d2.notas = ta.value.trim(); persist(); }
+      if(!d2) return;
+      d2.notas = ta.value.trim();
+      persist();
+      card.querySelector(".saved").textContent = "salvo no navegador — enviando quando você parar…";
+      clearTimeout(timer);
+      timer = setTimeout(function(){ enviarParecer(item, card); }, 1400);
+    });
+    ta.addEventListener("blur", function(){
+      clearTimeout(timer);
+      if(dec(item.id)) enviarParecer(item, card);
     });
     card.querySelectorAll(".actions button").forEach(function(b){
-      b.addEventListener("click", function(){ decide(item, b.dataset.act, card); });
+      b.addEventListener("click", function(){ clearTimeout(timer); decide(item, b.dataset.act, card); });
     });
     paintCard(card, item);
   }
