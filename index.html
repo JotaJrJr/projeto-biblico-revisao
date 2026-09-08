@@ -86,6 +86,7 @@
   .actions button[aria-pressed="true"].ap{background:var(--ok);border-color:var(--ok);color:#fff}
   .actions button[aria-pressed="true"].aj{background:var(--warn);border-color:var(--warn);color:#fff}
   .actions button[aria-pressed="true"].re{background:var(--bad);border-color:var(--bad);color:#fff}
+  .acthint{font-size:.75rem;color:var(--muted);margin-top:.5rem;line-height:1.4}
   .notes{margin-top:.7rem;display:none} .notes.show{display:block}
   .notes textarea{width:100%;min-height:4rem;font:inherit;font-size:.9rem;padding:.6rem;border:1px solid var(--line);
     border-radius:.5rem;background:var(--ground);color:var(--ink);resize:vertical}
@@ -283,9 +284,13 @@
     '<div class="actlab"></div>'+
     '<div class="actions">'+
       '<button class="ap" data-act="Aprovar" aria-pressed="false">✓ Aprovar</button>'+
-      '<button class="aj" data-act="Ajustar" aria-pressed="false">✎ Ajustar</button>'+
+      '<button class="aj" data-act="Ajustar" aria-pressed="false">✎ Ajustar e aprovar</button>'+
       '<button class="re" data-act="Rejeitar" aria-pressed="false">✕ Rejeitar</button>'+
-    '</div><div class="notes"><textarea></textarea></div>'+
+    '</div>'+
+    '<div class="acthint">“Ajustar e aprovar” = está bom com a mudança que você '+
+      'descrever abaixo; não volta pra você. Mudança grande (o ponto está errado) '+
+      '→ Rejeitar.</div>'+
+    '<div class="notes"><textarea></textarea></div>'+
     '<div class="saved"></div>';
 
   function ligarCard(card, item){
