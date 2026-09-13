@@ -127,6 +127,7 @@
           <button data-tipo="quiz" aria-pressed="false">Quiz</button>
           <button data-tipo="meditacao" aria-pressed="false">Meditação</button>
           <button data-tipo="jornada" aria-pressed="false">Jornada</button>
+          <button data-tipo="planoLeitura" aria-pressed="false">Plano de leitura</button>
         </div>
       </div>
       <div class="row">
@@ -163,7 +164,7 @@
   var CLS = {Aprovar:"ap", Ajustar:"aj", Rejeitar:"re"};
   var ABBR = {Aprovar:"✓", Ajustar:"✎", Rejeitar:"✕"};
 
-  var DADOS = { devocional: [], quiz: [], meditacao: [], jornada: [] }; // listas por tipo
+  var DADOS = { devocional: [], quiz: [], meditacao: [], jornada: [], planoLeitura: [] }; // listas por tipo
 
   // ---------- gate ----------
   async function decrypt(arquivo, password){
@@ -182,6 +183,7 @@
         decrypt("quiz.enc", pw).catch(function(){ return { quiz: [] }; }),
         decrypt("meditacoes.enc", pw).catch(function(){ return { meditacoes: [] }; }),
         decrypt("jornadas.enc", pw).catch(function(){ return { jornadas: [] }; }),
+        decrypt("planos-leitura.enc", pw).catch(function(){ return { planosLeitura: [] }; }),
       ];
       return Promise.all(outros).then(function(res){
         try{ sessionStorage.setItem("pb-pw", pw); }catch(e){}
@@ -189,6 +191,7 @@
         DADOS.quiz = (res[0].quiz || []).map(function(q){ q.titulo = q.enunciado; return q; });
         DADOS.meditacao = res[1].meditacoes || [];
         DADOS.jornada = (res[2].jornadas || []).map(function(j){ j.titulo = "dia " + j.dia + " — " + j.titulo; return j; });
+        DADOS.planoLeitura = (res[3].planosLeitura || []).map(function(p){ p.titulo = "dia " + p.dia + " — " + p.leitura.join(", "); return p; });
         gate.classList.add("hidden"); app.classList.remove("hidden");
         boot(); mostrarTipo(store.__tipo);
       });
@@ -227,9 +230,10 @@
   function dec(id){ return (store[id] || {})[papel()] || null; }
 
   var TITULO_HD = { devocional:"Revisão de devocionais", quiz:"Revisão de quiz",
-    meditacao:"Revisão de meditações", jornada:"Revisão de jornada" };
+    meditacao:"Revisão de meditações", jornada:"Revisão de jornada",
+    planoLeitura:"Revisão do plano de leitura" };
   var RENDER_POR_TIPO = { devocional:renderDevocionais, quiz:renderQuiz,
-    meditacao:renderMeditacoes, jornada:renderJornadas };
+    meditacao:renderMeditacoes, jornada:renderJornadas, planoLeitura:renderPlanoLeitura };
   function mostrarTipo(t){
     store.__tipo = t; persist();
     tipoBtns.forEach(function(x){ x.setAttribute("aria-pressed", x.dataset.tipo===t ? "true":"false"); });
@@ -248,6 +252,7 @@
     var s = String(id);
     if(s.indexOf("quiz-")===0) return "quiz";
     if(s.indexOf("meditacao-")===0) return "meditacao";
+    if(s.indexOf("plano-leitura-")===0) return "plano_leitura";
     if(s.indexOf("jornada-")===0) return "jornada";
     return "devocional";
   }
@@ -326,7 +331,7 @@
     var p = papel();
     var itens = window.__ATIVOS || [];
     var done = itens.filter(function(d){ return (store[d.id]||{})[p] && store[d.id][p].status; }).length;
-    var ROT_TIPO = {devocional:"dev", quiz:"quiz", meditacao:"med", jornada:"jorn"};
+    var ROT_TIPO = {devocional:"dev", quiz:"quiz", meditacao:"med", jornada:"jorn", planoLeitura:"leitura"};
     var rot = (ROT_TIPO[tipo()]||tipo()) + " · " + (p==="dono"?"dono":"teólogo");
     document.getElementById("prog").textContent = done + " / " + itens.length + " (" + rot + ")";
     document.getElementById("barfill").style.width = itens.length ? (done/itens.length*100)+"%" : "0";
@@ -532,6 +537,36 @@
     updateProg();
   }
 
+  // ---------- plano de leitura ----------
+  var CHECK_LEITURA = [
+    "'foco' e 'nota' batem com o que o capítulo realmente diz (sem alucinar)?",
+    "Cristo no centro — aponta pra quem Jesus é/faz, não vira lição moral genérica?",
+    "'nota' ilumina a leitura sem repetir o versículo palavra por palavra?",
+    "Sem clichê religioso gasto?"
+  ];
+  function renderPlanoLeitura(itens){
+    window.__ATIVOS = itens;
+    var list = document.getElementById("list"); list.innerHTML = "";
+    if(!itens.length){ list.innerHTML = '<div class="empty">Nenhum dia de plano de leitura para revisar agora.</div>'; updateProg(); return; }
+    itens.forEach(function(p, i){
+      var card = document.createElement("article"); card.className = "card";
+      card.innerHTML =
+        '<div class="badges"></div>'+
+        '<span class="num">Plano de leitura — dia '+p.dia+' de '+itens.length+'</span><h2></h2>'+
+        '<div class="field"><span class="lab">Foco</span><span class="fc-t"></span></div>'+
+        '<div class="field"><span class="lab">Nota</span><span class="nt-t"></span></div>'+
+        '<details><summary>checklist rápido</summary><ul>'+CHECK_LEITURA.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul></details>'+
+        ACTIONS_HTML;
+      card.querySelector("h2").textContent = p.leitura.join(", ");
+      card.querySelector(".fc-t").textContent = p.foco || "—";
+      card.querySelector(".nt-t").textContent = p.nota || "—";
+      card.querySelector("textarea").placeholder = "O que ajustar / por que rejeitar (fidelidade ao texto, tom, teologia)…";
+      list.appendChild(card);
+      ligarCard(card, p);
+    });
+    updateProg();
+  }
+
   document.getElementById("backup").addEventListener("click", function(){
     var blob = new Blob([JSON.stringify(store, null, 2)], {type:"application/json"});
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -540,7 +575,7 @@
   document.getElementById("reenviar").addEventListener("click", function(){
     if(!CFG.APPS_SCRIPT_URL){ alert("O envio ainda não foi configurado. Use o backup."); return; }
     var porId = {};
-    DADOS.devocional.concat(DADOS.quiz, DADOS.meditacao, DADOS.jornada).forEach(function(x){ porId[x.id] = x; });
+    DADOS.devocional.concat(DADOS.quiz, DADOS.meditacao, DADOS.jornada, DADOS.planoLeitura).forEach(function(x){ porId[x.id] = x; });
     var jobs = [];
     Object.keys(store).forEach(function(id){
       if(id.indexOf("__")===0) return;
