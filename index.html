@@ -78,10 +78,6 @@
   ol.alts li.correta::after{content:"✓ correta";position:absolute;right:.7rem;top:.55rem;
     font-size:.7rem;font-weight:700;color:var(--ok)}
 
-  /* meditação / jornada */
-  .roteiro-item{margin-top:.7rem;padding-left:.8rem;border-left:2px solid var(--line)}
-  .roteiro-item .lab{display:block}
-
   .actlab{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:1.1rem}
   .actions{display:flex;gap:.5rem;margin-top:.4rem;flex-wrap:wrap}
   .actions button{flex:1;min-width:8rem;font:inherit;font-weight:600;font-size:.9rem;padding:.6rem .5rem;
@@ -125,9 +121,6 @@
         <div class="seg" id="tipoSeg">
           <button data-tipo="devocional" aria-pressed="true">Devocionais</button>
           <button data-tipo="quiz" aria-pressed="false">Quiz</button>
-          <button data-tipo="meditacao" aria-pressed="false">Meditação</button>
-          <button data-tipo="jornada" aria-pressed="false">Jornada</button>
-          <button data-tipo="planoLeitura" aria-pressed="false">Plano de leitura</button>
         </div>
       </div>
       <div class="row">
@@ -164,7 +157,7 @@
   var CLS = {Aprovar:"ap", Ajustar:"aj", Rejeitar:"re"};
   var ABBR = {Aprovar:"✓", Ajustar:"✎", Rejeitar:"✕"};
 
-  var DADOS = { devocional: [], quiz: [], meditacao: [], jornada: [], planoLeitura: [] }; // listas por tipo
+  var DADOS = { devocional: [], quiz: [] }; // listas por tipo
 
   // ---------- gate ----------
   async function decrypt(arquivo, password){
@@ -177,21 +170,12 @@
   }
   var gate = document.getElementById("gate"), app = document.getElementById("app");
   function tryPw(pw, onErr){
-    // devocionais.enc é obrigatório (valida a senha); os demais podem não existir ainda.
+    // devocionais.enc é obrigatório (valida a senha); quiz.enc pode não existir ainda.
     decrypt("devocionais.enc", pw).then(function(dev){
-      var outros = [
-        decrypt("quiz.enc", pw).catch(function(){ return { quiz: [] }; }),
-        decrypt("meditacoes.enc", pw).catch(function(){ return { meditacoes: [] }; }),
-        decrypt("jornadas.enc", pw).catch(function(){ return { jornadas: [] }; }),
-        decrypt("planos-leitura.enc", pw).catch(function(){ return { planosLeitura: [] }; }),
-      ];
-      return Promise.all(outros).then(function(res){
+      return decrypt("quiz.enc", pw).catch(function(){ return { quiz: [] }; }).then(function(qz){
         try{ sessionStorage.setItem("pb-pw", pw); }catch(e){}
         DADOS.devocional = dev.devocionais || [];
-        DADOS.quiz = (res[0].quiz || []).map(function(q){ q.titulo = q.enunciado; return q; });
-        DADOS.meditacao = res[1].meditacoes || [];
-        DADOS.jornada = (res[2].jornadas || []).map(function(j){ j.titulo = "dia " + j.dia + " — " + j.titulo; return j; });
-        DADOS.planoLeitura = (res[3].planosLeitura || []).map(function(p){ p.titulo = "dia " + p.dia + " — " + p.leitura.join(", "); return p; });
+        DADOS.quiz = (qz.quiz || []).map(function(q){ q.titulo = q.enunciado; return q; });
         gate.classList.add("hidden"); app.classList.remove("hidden");
         boot(); mostrarTipo(store.__tipo);
       });
@@ -229,16 +213,11 @@
   function tipo(){ return store.__tipo || "devocional"; }
   function dec(id){ return (store[id] || {})[papel()] || null; }
 
-  var TITULO_HD = { devocional:"Revisão de devocionais", quiz:"Revisão de quiz",
-    meditacao:"Revisão de meditações", jornada:"Revisão de jornada",
-    planoLeitura:"Revisão do plano de leitura" };
-  var RENDER_POR_TIPO = { devocional:renderDevocionais, quiz:renderQuiz,
-    meditacao:renderMeditacoes, jornada:renderJornadas, planoLeitura:renderPlanoLeitura };
   function mostrarTipo(t){
     store.__tipo = t; persist();
     tipoBtns.forEach(function(x){ x.setAttribute("aria-pressed", x.dataset.tipo===t ? "true":"false"); });
-    document.querySelector("h1.hd").textContent = TITULO_HD[t] || "Revisão";
-    RENDER_POR_TIPO[t](DADOS[t]);
+    document.querySelector("h1.hd").textContent = t==="quiz" ? "Revisão de quiz" : "Revisão de devocionais";
+    (t==="quiz" ? renderQuiz : renderDevocionais)(DADOS[t]);
   }
 
   function send(rec){
@@ -248,14 +227,7 @@
       body: JSON.stringify(Object.assign({token:CFG.TOKEN}, rec))})
       .then(function(){return true;}).catch(function(){return false;});
   }
-  function kindDe(id){
-    var s = String(id);
-    if(s.indexOf("quiz-")===0) return "quiz";
-    if(s.indexOf("meditacao-")===0) return "meditacao";
-    if(s.indexOf("plano-leitura-")===0) return "plano_leitura";
-    if(s.indexOf("jornada-")===0) return "jornada";
-    return "devocional";
-  }
+  function kindDe(id){ return String(id).indexOf("quiz-")===0 ? "quiz" : "devocional"; }
   function precisaNota(status){ return status==="Ajustar" || status==="Rejeitar"; }
 
   // Envia o parecer atual (status + nota do momento) pra planilha. Evita
@@ -331,8 +303,7 @@
     var p = papel();
     var itens = window.__ATIVOS || [];
     var done = itens.filter(function(d){ return (store[d.id]||{})[p] && store[d.id][p].status; }).length;
-    var ROT_TIPO = {devocional:"dev", quiz:"quiz", meditacao:"med", jornada:"jorn", planoLeitura:"leitura"};
-    var rot = (ROT_TIPO[tipo()]||tipo()) + " · " + (p==="dono"?"dono":"teólogo");
+    var rot = (tipo()==="quiz"?"quiz":"dev") + " · " + (p==="dono"?"dono":"teólogo");
     document.getElementById("prog").textContent = done + " / " + itens.length + " (" + rot + ")";
     document.getElementById("barfill").style.width = itens.length ? (done/itens.length*100)+"%" : "0";
   }
@@ -453,120 +424,6 @@
     updateProg();
   }
 
-  // ---------- meditação ----------
-  var CHECK_MED = [
-    "Cristo no centro — não é só relaxamento genérico/mindfulness?",
-    "Tom de acolhida, sem comando/cobrança ('respire agora', sem culpa se não conseguir)?",
-    "As pausas (pausa_seg) fazem sentido pro ritmo de fala em áudio?",
-    "Sem prosperidade, culpa ou promessa de resultado?"
-  ];
-  function renderMeditacoes(itens){
-    window.__ATIVOS = itens;
-    var list = document.getElementById("list"); list.innerHTML = "";
-    if(!itens.length){ list.innerHTML = '<div class="empty">Nenhuma meditação para revisar agora.</div>'; updateProg(); return; }
-    itens.forEach(function(m, i){
-      var card = document.createElement("article"); card.className = "card";
-      card.innerHTML =
-        '<div class="badges"></div>'+
-        '<span class="num">Meditação '+(i+1)+' de '+itens.length+'</span><h2></h2>'+
-        '<div class="field"><span class="lab">Tema</span><span class="tm-t"></span></div>'+
-        '<div class="field"><span class="lab">Duração alvo</span><span class="du-t"></span></div>'+
-        '<div class="field"><span class="lab">Trilha sonora</span><span class="ts-t"></span></div>'+
-        '<div class="verse"><b></b><p></p></div>'+
-        '<div class="roteiro"></div>'+
-        '<details><summary>checklist rápido</summary><ul>'+CHECK_MED.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul></details>'+
-        ACTIONS_HTML;
-      card.querySelector("h2").textContent = m.titulo;
-      card.querySelector(".tm-t").textContent = m.tema || "—";
-      card.querySelector(".du-t").textContent = (m.duracao_alvo_min || "—") + " min";
-      card.querySelector(".ts-t").textContent = m.trilha_sonora || "—";
-      if(m.passagem){
-        card.querySelector(".verse b").textContent = m.passagem.referencia + "  ·  " + m.passagem.traducao;
-        card.querySelector(".verse p").textContent = m.passagem.texto;
-      }
-      var rot = card.querySelector(".roteiro");
-      (m.roteiro || []).forEach(function(r){
-        var el = document.createElement("div"); el.className = "roteiro-item";
-        el.innerHTML = '<span class="lab">'+r.secao+' · '+r.pausa_seg+'s de pausa</span><p></p>';
-        el.querySelector("p").textContent = r.fala;
-        rot.appendChild(el);
-      });
-      card.querySelector("textarea").placeholder = "O que ajustar / por que rejeitar (tom, teologia, ritmo)…";
-      list.appendChild(card);
-      ligarCard(card, m);
-    });
-    updateProg();
-  }
-
-  // ---------- jornada ----------
-  var CHECK_JORN = [
-    "Cristo no centro — a prática aponta pra Ele, não pra uma técnica?",
-    "Se a prática usa um objeto físico (papel etc.), fica claro que é só lembrete visual, sem superstição?",
-    "Sensível a quem está sozinho (a prática não exige outra pessoa)?",
-    "O versículo sustenta o ponto do dia?"
-  ];
-  function renderJornadas(itens){
-    window.__ATIVOS = itens;
-    var list = document.getElementById("list"); list.innerHTML = "";
-    if(!itens.length){ list.innerHTML = '<div class="empty">Nenhum dia de jornada para revisar agora.</div>'; updateProg(); return; }
-    itens.forEach(function(j, i){
-      var card = document.createElement("article"); card.className = "card";
-      card.innerHTML =
-        '<div class="badges"></div>'+
-        '<span class="num">Jornada '+(j.plano_id||"")+' — dia '+j.dia+' de '+itens.length+'</span><h2></h2>'+
-        '<div class="field"><span class="lab">Objetivo do dia</span><span class="ob-t"></span></div>'+
-        '<div class="verse"><b></b><p></p></div><div class="refl"></div>'+
-        '<div class="field"><span class="lab">Prática</span><span class="pr-t"></span></div>'+
-        '<div class="field"><span class="lab">Pergunta do diário</span><span class="pd-t"></span></div>'+
-        '<details><summary>checklist rápido</summary><ul>'+CHECK_JORN.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul></details>'+
-        ACTIONS_HTML;
-      card.querySelector("h2").textContent = j.titulo;
-      card.querySelector(".ob-t").textContent = j.objetivo_do_dia || "—";
-      if(j.passagem){
-        card.querySelector(".verse b").textContent = j.passagem.referencia + "  ·  " + j.passagem.traducao;
-        card.querySelector(".verse p").textContent = j.passagem.texto;
-      }
-      var refl = card.querySelector(".refl");
-      String(j.leitura||"").split(/\n+/).forEach(function(p){ var el=document.createElement("p"); el.textContent=p; refl.appendChild(el); });
-      card.querySelector(".pr-t").textContent = j.pratica || "—";
-      card.querySelector(".pd-t").textContent = j.pergunta_diario || "—";
-      card.querySelector("textarea").placeholder = "O que ajustar / por que rejeitar (doutrina, superstição, tom)…";
-      list.appendChild(card);
-      ligarCard(card, j);
-    });
-    updateProg();
-  }
-
-  // ---------- plano de leitura ----------
-  var CHECK_LEITURA = [
-    "'foco' e 'nota' batem com o que o capítulo realmente diz (sem alucinar)?",
-    "Cristo no centro — aponta pra quem Jesus é/faz, não vira lição moral genérica?",
-    "'nota' ilumina a leitura sem repetir o versículo palavra por palavra?",
-    "Sem clichê religioso gasto?"
-  ];
-  function renderPlanoLeitura(itens){
-    window.__ATIVOS = itens;
-    var list = document.getElementById("list"); list.innerHTML = "";
-    if(!itens.length){ list.innerHTML = '<div class="empty">Nenhum dia de plano de leitura para revisar agora.</div>'; updateProg(); return; }
-    itens.forEach(function(p, i){
-      var card = document.createElement("article"); card.className = "card";
-      card.innerHTML =
-        '<div class="badges"></div>'+
-        '<span class="num">Plano de leitura — dia '+p.dia+' de '+itens.length+'</span><h2></h2>'+
-        '<div class="field"><span class="lab">Foco</span><span class="fc-t"></span></div>'+
-        '<div class="field"><span class="lab">Nota</span><span class="nt-t"></span></div>'+
-        '<details><summary>checklist rápido</summary><ul>'+CHECK_LEITURA.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul></details>'+
-        ACTIONS_HTML;
-      card.querySelector("h2").textContent = p.leitura.join(", ");
-      card.querySelector(".fc-t").textContent = p.foco || "—";
-      card.querySelector(".nt-t").textContent = p.nota || "—";
-      card.querySelector("textarea").placeholder = "O que ajustar / por que rejeitar (fidelidade ao texto, tom, teologia)…";
-      list.appendChild(card);
-      ligarCard(card, p);
-    });
-    updateProg();
-  }
-
   document.getElementById("backup").addEventListener("click", function(){
     var blob = new Blob([JSON.stringify(store, null, 2)], {type:"application/json"});
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -575,7 +432,7 @@
   document.getElementById("reenviar").addEventListener("click", function(){
     if(!CFG.APPS_SCRIPT_URL){ alert("O envio ainda não foi configurado. Use o backup."); return; }
     var porId = {};
-    DADOS.devocional.concat(DADOS.quiz, DADOS.meditacao, DADOS.jornada, DADOS.planoLeitura).forEach(function(x){ porId[x.id] = x; });
+    DADOS.devocional.concat(DADOS.quiz).forEach(function(x){ porId[x.id] = x; });
     var jobs = [];
     Object.keys(store).forEach(function(id){
       if(id.indexOf("__")===0) return;
